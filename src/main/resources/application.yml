@@ -1,0 +1,16 @@
+spring:
+  application:
+    name: assignment2-multi-agent-add
+  main:
+    web-application-type: none
+  ai:
+    dashscope:
+      api-key: ${DASHSCOPE_API_KEY:}
+      chat:
+        options:
+          model: qwen3-max
+          temperature: 0.2
+
+assignment:
+  model: qwen3-max
+  output-dir: out/assignment2
