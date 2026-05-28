@@ -69,8 +69,7 @@ Assignment 2/
 │   ├── final-report.docx                     # 最终英文报告
 │   ├── final-report.md                       # 最终英文报告源稿
 │   ├── cost-summary.md                       # 成本统计
-│   ├── member-contributions.md               # 成员贡献说明
-│   └── ...                                   # 其余辅助整理文件默认不纳入 Git 管理
+│   └── member-contributions.md               # 成员贡献说明
 └── out/
     └── assignment2/
         ├── conversation-log.jsonl            # 完整机器可读日志
