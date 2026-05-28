@@ -4,6 +4,11 @@ target/
 *.iml
 .DS_Store
 .mybatis/
+docs/
 logs/
 out/
 *.log
+~$*.docx
+submission/_a4_test.docx
+submission/figures/
+submission/build_report_diagrams.py
