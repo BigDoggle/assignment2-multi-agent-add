@@ -12,3 +12,8 @@ out/
 submission/_a4_test.docx
 submission/figures/
 submission/build_report_diagrams.py
+submission/build_final_report_docx.py
+submission/README-提交说明.md
+submission/source-code-manifest.md
+submission/log-delivery-note.md
+submission/交付清单.md

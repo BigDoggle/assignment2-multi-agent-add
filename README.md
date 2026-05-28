@@ -34,45 +34,49 @@
 
 ## 2. 项目结构
 
-### 2.1 源代码
-
-- `src/main/java/cn/edu/softarch/assignment2/`
-  - `Assignment2Application.java`：应用入口
-  - `agent/AgentPromptFactory.java`：构造多智能体提示词
-  - `cli/RunAssignmentCommand.java`：命令行执行入口
-  - `config/`：配置类
-  - `domain/`：ADD 工作流领域模型
-  - `knowledge/KnowledgeBase.java`：知识库加载
-  - `llm/`：Qwen 调用抽象与实现
-  - `logging/ConversationLogWriter.java`：日志输出
-  - `workflow/AddWorkflow.java`：ADD 工作流主逻辑
-- `src/main/resources/`
-  - `application.yml`
-  - `knowledge/add-3.0.md`
-  - `knowledge/hotel-pricing-system.md`
-  - `prompts/system-policy.md`
-- `src/test/java/cn/edu/softarch/assignment2/`：单元测试
-
-### 2.2 最终提交材料
-
-- `submission/final-report.docx`：最终英文报告
-- `submission/final-report.md`：最终英文报告的 Markdown 源稿
-- `submission/cost-summary.md`：交互成本统计
-- `submission/member-contributions.md`：成员贡献与反思素材
-- `submission/source-code-manifest.md`：源码交付清单
-- `submission/log-delivery-note.md`：日志交付说明
-- `submission/README-提交说明.md`：提交补充说明
-- `submission/交付清单.md`：最终交付核对清单
-
-### 2.3 运行输出
-
-完整运行后会生成以下文件：
-
-- `out/assignment2/conversation-log.jsonl`
-- `out/assignment2/conversation-log.md`
-- `out/assignment2/report-draft.md`
-
-这些文件属于运行产物，默认不纳入 Git 管理。
+```text
+Assignment 2/
+├── pom.xml                                   # Maven 构建配置
+├── README.md                                 # 项目说明
+├── 2026SoftArch-assignment2.pdf              # 作业原始要求
+├── src/
+│   ├── main/
+│   │   ├── java/cn/edu/softarch/assignment2/
+│   │   │   ├── Assignment2Application.java   # Spring Boot 应用入口
+│   │   │   ├── agent/
+│   │   │   │   └── AgentPromptFactory.java   # 多智能体提示词构造
+│   │   │   ├── cli/
+│   │   │   │   └── RunAssignmentCommand.java # 命令行执行入口
+│   │   │   ├── config/                       # 配置类
+│   │   │   ├── domain/                       # ADD 工作流领域模型
+│   │   │   ├── knowledge/
+│   │   │   │   └── KnowledgeBase.java        # 作业知识加载
+│   │   │   ├── llm/                          # Qwen 调用抽象与实现
+│   │   │   ├── logging/
+│   │   │   │   └── ConversationLogWriter.java# 对话日志输出
+│   │   │   └── workflow/
+│   │   │       └── AddWorkflow.java          # ADD 工作流主逻辑
+│   │   └── resources/
+│   │       ├── application.yml               # 运行配置
+│   │       ├── knowledge/
+│   │       │   ├── add-3.0.md                # ADD 3.0 知识
+│   │       │   └── hotel-pricing-system.md   # 案例知识
+│   │       └── prompts/
+│   │           └── system-policy.md          # 系统提示词策略
+│   └── test/
+│       └── java/cn/edu/softarch/assignment2/ # 单元测试
+├── submission/
+│   ├── final-report.docx                     # 最终英文报告
+│   ├── final-report.md                       # 最终英文报告源稿
+│   ├── cost-summary.md                       # 成本统计
+│   ├── member-contributions.md               # 成员贡献说明
+│   └── ...                                   # 其余辅助整理文件默认不纳入 Git 管理
+└── out/
+    └── assignment2/
+        ├── conversation-log.jsonl            # 完整机器可读日志
+        ├── conversation-log.md               # 完整人工可读日志
+        └── report-draft.md                   # 模型生成的报告草稿
+```
 
 ## 3. 运行要求
 
@@ -115,7 +119,7 @@ env JAVA_HOME=/opt/homebrew/opt/openjdk PATH=/opt/homebrew/opt/openjdk/bin:/opt/
 env JAVA_HOME=/opt/homebrew/opt/openjdk PATH=/opt/homebrew/opt/openjdk/bin:/opt/homebrew/bin:/usr/bin:/bin /opt/homebrew/bin/mvn spring-boot:run -Dspring-boot.run.arguments="run-assignment --output-dir out/assignment2-smoke --max-turns 1"
 ```
 
-## 6. 当前已完成的作业成果
+## 6. 作业成果
 
 本仓库当前已经整理出以下最终成果：
 
@@ -137,27 +141,3 @@ env JAVA_HOME=/opt/homebrew/opt/openjdk PATH=/opt/homebrew/opt/openjdk/bin:/opt/
 
 - `submission/final-report.docx` 是最终提交报告的权威版本
 - `out/assignment2/` 下的日志用于作为完整过程证据
-
-## 7. 当前 Git 管理策略
-
-为了保持仓库干净，以下内容默认不纳入 Git：
-
-- `target/`
-- `out/`
-- `logs/`
-- `.mybatis/`
-- `docs/`
-- Word 临时锁文件
-- 报告生成过程中的测试性文档和已废弃图片产物
-
-这意味着仓库主要保留：
-
-- 可复现的源代码
-- 最终需要提交的文档材料
-- 必要的说明文件
-
-## 8. 说明
-
-- `submission/final-report.docx` 可能经过人工格式微调，因此如无明确需要，不应自动重写该文件。
-- `out/assignment2/report-draft.md` 是模型原始生成草稿，不应直接作为最终报告提交。
-- 如果需要重新生成最终报告，建议先确认是否会覆盖已经完成的人工格式调整。
