@@ -1,510 +1,378 @@
 # Software Architecture Assignment 2 Report
 
-## 1. Introduction
+Selected Task: Option 3. Multi-agent (Distributed reasoning + collaborative verification)
 
-This assignment was completed with a multi-agent approach using Qwen3-Max as the base large language model and Spring AI Alibaba as the agent framework. The target problem is the Hotel Pricing System, and the design process follows the ADD 3.0 method exactly as required by the assignment.
+## I. Output Results of ADD
 
-The implementation was intentionally constrained by the assignment rules. The agents were only allowed to use the provided ADD method description, the Hotel Pricing System case, the iteration plan, and the explicit system policy. No external domain knowledge, no hand-written examples, and no additional business assumptions were introduced.
+### ADD Step 1:
 
-The purpose of the implementation was twofold:
+Before starting the iterative design work, the system reviewed all inputs explicitly provided by the assignment package: the ADD 3.0 method, the Hotel Pricing System case, the four-iteration plan, the required quality attributes, the architectural concerns, the system constraints, and the selected assignment setup of Multi-agent + Qwen3-Max + Spring AI Alibaba. Because the case is defined as a greenfield replacement project, the first architectural refinement target had to be the system as a whole rather than an existing subsystem.
 
-1. to execute the four required ADD iterations through a structured multi-agent workflow; and
-2. to preserve the complete reasoning process as timestamped logs that can be inspected and reused for the final report.
+The review of inputs also showed that the main architectural pressures are tightly connected rather than independent. The primary functions define the behavioral scope, but the quality attributes and constraints determine how those functions should be organized. Price publication introduces reliability pressure, price query introduces availability and scalability pressure, identity handling introduces security boundaries, and the cloud-native plus REST-first constraints introduce pressure for modularity, portability, and future protocol extensibility. Therefore, every later ADD step had to be grounded in the same bounded input set and could not rely on external domain assumptions, product knowledge, or handcrafted examples.
 
-The five agent roles used in the workflow were:
+### 1) Output results of each step (Iteration 1: Establishing an Overall System Structure)
 
-- Coordinator
-- Architect
-- Quality Analyst
-- Reviewer
-- Recorder
+#### ADD Step 2:
 
-These roles were not treated as separate knowledge sources. Instead, they were separate viewpoints over the same provided assignment material, used to improve structure, self-checking, and traceability.
-
-## 2. ADD Step 1 Review of Inputs
-
-Before starting the iterative design work, the system reviewed all provided inputs:
-
-- the ADD 3.0 method steps;
-- the Hotel Pricing System design purpose;
-- the six primary functions HPS-1 to HPS-6;
-- the quality attributes QA-1 to QA-9;
-- the architectural concerns CRN-1 to CRN-5;
-- the constraints CON-1 to CON-6;
-- the selected assignment setup:
-  - Multi-agent
-  - Qwen3-Max
-  - Spring AI Alibaba
-
-The design purpose clearly states that this is greenfield development intended to replace an existing system. This directly affects ADD Step 3 because the system itself must be selected first for refinement before moving to lower-level elements.
-
-The most important functional scope can be summarized as:
-
-- user login and authorization;
-- price change, simulation, and publication;
-- price query through UI and API;
-- hotel data management;
-- rate and rule management;
-- user permission management.
-
-The major architectural pressures identified from the input were:
-
-- reliability of price publication;
-- availability and scalability of price query;
-- secure authorization boundaries;
-- modifiability for future non-REST protocols;
-- deployability, monitorability, and testability under a cloud-native constraint.
-
-These inputs also implied an important reporting principle for the whole assignment: each iteration had to be justified only with the information explicitly present in the case. That meant the design process could not rely on undocumented business assumptions, specific middleware products, or technology-specific optimizations. As a result, the report emphasizes structural reasoning, responsibility allocation, interface boundaries, and quality-attribute alignment rather than product-level implementation decisions.
-
-### 2.1 Cross-Cutting Interpretation of the Inputs
-
-The provided inputs were not independent lists. In practice, they formed a set of interdependent architectural pressures that had to be interpreted together. For example, the primary functions define what the system must do, but they do not by themselves determine a good structure. That structural pressure comes from the interaction between functionality and quality attributes. HPS-2 Change Prices is not only a business function; it is also the main carrier of performance, reliability, and monitorability concerns. Likewise, HPS-3 Query Prices is not only a user-facing capability; it is also the main carrier of availability, scalability, and protocol-extension concerns.
-
-The same cross-cutting logic applies to the constraints. CON-5 does not merely say that the first version uses REST. It also implies that transport concerns must not dominate the core of the architecture, because another protocol may later be added. CON-6 does not merely suggest a deployment preference. It also reinforces architectural separation, because portability, deployability, and repeatability are easier to achieve when configuration, business logic, and integration responsibilities are clearly bounded. CON-2 influences both security and deployment thinking, because identity integration and cloud hosting affect where trust boundaries and external dependencies appear.
-
-From a reporting perspective, this means the ADD process cannot be read as a sequence of unrelated steps. The architecture evolves by repeatedly revisiting the same bounded input set from different viewpoints. That is why the same functional requirements, quality attributes, concerns, and constraints appear across multiple iterations: each iteration uses them to answer a different architectural question.
-
-## 3. Iteration 1: Establishing an Overall System Structure
-
-### 3.1 Step 2 Select Drivers
-
-The first iteration focused on defining the overall system structure. The key drivers selected in this step were:
+The first iteration selected the following primary architectural drivers:
 
 - CRN-1: establish an initial system structure;
-- CON-6: favor a cloud-native approach;
 - QA-3: availability;
 - QA-4: scalability;
 - QA-5: security;
 - QA-6: modifiability;
-- CON-5: REST first, while allowing future protocol extension.
+- CON-5: REST first while allowing future protocol extension;
+- CON-6: cloud-native preference.
 
-The core conclusion was that the architecture had to separate protocol concerns, security boundaries, business logic, and external integration early, because all of these qualities shape the top-level decomposition.
+These drivers were chosen because the first iteration had to answer the broadest structural question: what major parts the system should contain and why those boundaries are necessary. Availability and scalability argued against collapsing all responsibilities into one request-processing core. Security argued for explicit boundary control near system entry. Modifiability argued for separating protocol-facing logic from business logic so that future non-REST interaction modes could be introduced without rewriting the core pricing responsibilities.
 
-Another key point in this step was that availability, scalability, security, and modifiability are not isolated concerns. For this system, they all influence the first structural cut. Availability and scalability argue against a monolithic request path for every use case. Security argues for clear trust boundaries close to system entry points. Modifiability argues for preventing transport or protocol concerns from leaking into core business logic. Therefore, the selected drivers collectively supported a structure with explicit boundaries rather than a single undifferentiated application core.
+#### ADD Step 3:
 
-### 3.2 Step 3 Select Elements
+Because the assignment describes a greenfield system, the selected element for refinement was the complete system. This is consistent with ADD 3.0 practice: before lower-level refinement can happen, the architecture first needs a stable top-level decomposition. Selecting the whole system also avoided premature commitment to detailed components before the major structural boundaries were justified.
 
-Because the project is greenfield, the selected element for refinement was the system as a whole. This decision is directly consistent with ADD 3.0 guidance and avoided premature decomposition before the structural goal was clear.
+#### ADD Step 4:
 
-### 3.3 Step 4 Select Design Concepts
+The selected design concept was a layered and cloud-oriented structure with explicit separation among external interaction, business logic, and external integration. This concept was chosen because it directly supports the combination of security, scalability, availability, and protocol-modifiability concerns identified from the input.
 
-The selected design direction was a layered and cloud-native structure with clear separation between:
+Alternative directions were less suitable under the assignment rules. A flat use-case-oriented structure would make protocol extension and security isolation difficult. A structure dominated by external integration concerns would weaken the internal business core needed for pricing simulation, price change, permission control, and hotel management. The chosen layered structure therefore provided the best architectural basis for the later iterations.
 
-- external interaction and protocol handling;
-- core business logic;
-- integration with outside services.
+Another reason for preferring this concept is that the first iteration needed a structure that could absorb later refinements without forcing a redesign. If the initial concept had been centered on one dominant function, such as query or publication, the later iterations would have had to retrofit other concerns into an already biased structure. The layered concept avoids that problem because it separates responsibilities at the right abstraction level: interaction at the boundary, business logic at the center, and external system contact at the edge.
 
-This concept was chosen because it supports the assignment drivers without forcing protocol or infrastructure logic into the core domain.
+This design concept also reduces architectural ambiguity. When a later requirement or quality concern appears, the team can ask whether it belongs to the interface boundary, the domain core, or the integration side. That question is much easier to answer in a layered structure than in a structure where all concerns are blended into one application core. In that sense, the selected concept serves not only runtime qualities but also later design decision consistency.
 
-Alternative directions were implicitly less suitable under the assignment constraints. A structure centered mainly on use-case scripts without clear layer boundaries would make protocol extension and security isolation harder. A structure centered mainly on external integrations would not provide a stable domain core for price simulation, rate management, and permission control. The chosen layered concept therefore offered the best balance between immediate delivery needs and the required architectural qualities.
+#### ADD Step 5:
 
-### 3.4 Step 5 Instantiate Elements
+The main top-level elements instantiated in this iteration were:
 
-The main top-level elements instantiated in Iteration 1 were:
+- User Interface Layer;
+- API Gateway / Protocol Adapters;
+- Authentication and Authorization Service;
+- Core Pricing Domain;
+- Hotel and Rate Management;
+- Publication Subsystem;
+- Query Subsystem.
 
-- User Interface Layer
-- API Gateway / Protocol Adapters
-- Authentication and Authorization Service
-- Core Pricing Domain
-- Hotel and Rate Management
-- Publication Subsystem
-- Query Subsystem
+These elements intentionally remained coarse-grained. The purpose of the first iteration was not to fully specify every responsibility, but to establish a stable architectural frame. By keeping the structure broad at this stage, later iterations could refine behavior, runtime quality paths, and development concerns without needing to replace the original decomposition.
 
-At this stage, the design intentionally stayed coarse-grained. The goal was to establish a stable structural frame rather than detailed component responsibilities.
+This coarse-grained instantiation also supports architectural traceability. Each top-level element corresponds to a recurring pressure from the assignment inputs: security, business responsibility, query demand, publication demand, or integration demand. Because those pressures were already visible in the input review, the first iteration could justify every major element without inventing lower-level details that the assignment had not yet asked the design to settle.
 
-This was an important ADD decision. Over-specifying detailed elements in the first iteration would have made later functional and quality-attribute refinements harder, because the team would have committed too early to low-level decisions. By keeping the first iteration coarse-grained, the architecture remained flexible enough to support later iterations that would focus on primary functionality, runtime qualities, and development concerns.
+In practical terms, this step created the minimum stable set of architectural containers needed for later refinement. It is easier to add finer internal responsibilities inside a clear top-level element than to restructure the system after functional and quality decisions have already accumulated. Therefore, the first iteration deliberately optimized for future refinement capacity rather than immediate detail density.
 
-### 3.5 Step 6 Sketch Views and Record Decisions
+#### ADD Step 6:
 
-The main structural view produced in this iteration can be described textually as follows:
+The structural view created in this iteration can be described textually as follows:
 
-1. User requests enter the system through the user browser.
+1. User requests enter the system from browsers or external API clients.
 2. Requests are first received by the API Gateway / Protocol Adapters.
-3. Authentication and authorization are enforced before the request reaches the user-facing application logic.
-4. The User Interface Layer coordinates user operations and forwards business work to the internal domain.
-5. The Core Pricing Domain handles pricing-related business responsibilities.
-6. Hotel and Rate Management handles hotel metadata, rate structures, room types, and related administrative data.
-7. The Core Pricing Domain delegates outbound publication responsibilities to the Publication Subsystem.
+3. Authentication and authorization checks are applied close to the entry boundary.
+4. Valid requests are forwarded into the User Interface Layer and then into the Core Pricing Domain.
+5. The Core Pricing Domain coordinates pricing-related business logic.
+6. Hotel and Rate Management supports hotel metadata, room types, rates, and pricing-rule administration.
+7. The Core Pricing Domain delegates publication responsibilities to the Publication Subsystem.
 8. The Core Pricing Domain delegates read-oriented price access responsibilities to the Query Subsystem.
 9. The Publication Subsystem communicates with the Channel Management System.
-10. The Query Subsystem serves query-facing consumers and clients.
+10. The Query Subsystem serves query-facing consumers through the chosen interface boundary.
 
-The main design decisions recorded here were:
+The key decisions recorded in this step were to keep security near the system boundary, isolate protocol handling from core domain logic, and treat publication and query as distinct structural concerns. This view also established the vocabulary that would later be refined into more specific components without changing the overall architectural shape.
 
-- keep security near the system boundary;
-- isolate protocol handling from business logic;
-- separate publication-related processing from query-related processing;
-- preserve room for future protocol extension without changing core components.
+#### ADD Step 7:
 
-The resulting view also established the initial vocabulary for later refinements. In later iterations, more specific elements such as authentication gateways, publishers, query handlers, adapters, and telemetry emitters could be introduced without changing the fundamental shape of the system. This continuity is important in ADD because each iteration should refine the current structure rather than replace it unnecessarily.
+The first iteration achieved its target. The architecture now had a stable top-level decomposition that could explain the major parts of the system and the reason each part exists. The design was still intentionally abstract, but it answered the essential first-iteration question of overall system structure.
 
-### 3.6 Step 7 Analyze Current Design
+At the same time, the analysis showed a clear remaining gap: the architecture could explain the main zones of the system, but it could not yet state which concrete element would own each required business function. That unresolved question directly motivated Iteration 2.
 
-The first iteration successfully produced a stable top-level architecture. It did not yet allocate detailed responsibilities for each use case, but it created the structural base required for later iterations. The design goal of establishing the overall system structure was achieved.
+The first iteration can therefore be considered successful not because it answered every design question, but because it reduced uncertainty in the right way. After this step, the team no longer needed to debate the overall shape of the system. The unresolved issues were narrower and more actionable: function allocation, quality-path refinement, and operational support. This is exactly the kind of narrowing that ADD intends to achieve through early iterations.
 
-At the end of Iteration 1, the architecture was strong enough to answer the question “What are the major parts of the system and why do they exist?” but not yet detailed enough to answer “Which element performs each required use case?” That remaining question directly motivated Iteration 2, where the focus shifted from broad structural decomposition to explicit support for primary functionality.
+### 2) Output results of each step (Iteration 2: Identifying Structures to Support Primary Functionality)
 
-## 4. Iteration 2: Identifying Structures to Support Primary Functionality
+#### ADD Step 2:
 
-### 4.1 Step 2 Select Drivers
+The second iteration selected the six primary functional requirements as the main drivers:
 
-The second iteration focused on the six primary functional requirements:
+- HPS-1 Log In;
+- HPS-2 Change Prices;
+- HPS-3 Query Prices;
+- HPS-4 Manage Hotels;
+- HPS-5 Manage Rates;
+- HPS-6 Manage Users.
 
-- HPS-1 Log In
-- HPS-2 Change Prices
-- HPS-3 Query Prices
-- HPS-4 Manage Hotels
-- HPS-5 Manage Rates
-- HPS-6 Manage Users
+QA-5 Security and QA-6 Modifiability were also retained as supporting drivers because functional allocation cannot be separated from access control and protocol isolation. This iteration was critical because the case includes several distinct forms of behavior, and each behavior needed an explicit architectural owner rather than being buried inside a large undifferentiated service.
 
-QA-5 and QA-6 were also retained as direct supporting drivers because security and protocol isolation shape how functionality should be allocated.
+#### ADD Step 3:
 
-This iteration was especially important because the assignment case contains six distinct kinds of system behavior, and each one could have been implemented in a tangled or overlapping way if architectural ownership were not made explicit. The purpose of the second iteration was therefore not just to “list components,” but to create a mapping from required business capabilities to stable architectural responsibilities.
+The selected refinement targets were the functional elements inside the previously established architecture, especially:
 
-### 4.2 Step 3 Select Elements
+- Authentication Gateway;
+- Price Query Handler;
+- Rate Editor;
+- Price Read Service;
+- Hotel Manager;
+- Rate Rule Manager;
+- Permission Manager;
+- Price Publisher.
 
-This iteration refined the specific elements needed to support the functional scope inside the previously defined three-part architecture. The selected elements included:
+This element selection also clarified which use cases share a path and which should remain separate. Price change and price query both deal with pricing information, but they have different architectural pressures. Price change emphasizes controlled updates, simulation, and reliable external publication, while price query emphasizes efficient retrieval and highly available service.
 
-- Authentication Gateway
-- Price Query Handler
-- Rate Editor
-- Price Read Service
-- Hotel Manager
-- Rate Rule Manager
-- Permission Manager
-- Price Publisher
+#### ADD Step 4:
 
-The element selection also made explicit which use cases share architectural pathways and which should remain separated. For example, HPS-2 Change Prices and HPS-3 Query Prices both depend on pricing information, but they place very different demands on the architecture. Price changes require controlled updates, simulation, and reliable publication, while price queries require efficient and available read access. Treating them as different architectural concerns early prevents the read path from being overloaded with write-side responsibilities.
+The chosen design concept was functional decomposition inside the layered structure established in Iteration 1. Each major business capability received a clear owner component, while protocol handling remained outside the domain core and external communication remained on the integration side.
 
-### 4.3 Step 4 Select Design Concepts
+This concept reduced responsibility overlap and improved maintainability. Login and authorization, hotel administration, rate management, permission management, price query, and price publication became related but distinct concerns. The architecture therefore became easier to reason about, easier to extend, and better prepared for later quality-attribute refinement.
 
-The design concept chosen here was functional decomposition within the previously established layers. Each major business capability received a clear owner component, while protocol-facing concerns remained at the outer boundary and integration-facing concerns stayed in the integration side of the structure.
+The functional decomposition concept was also preferable because the assignment includes both operational functions and administrative functions. If all of them were merged into a generic business service, the architecture would quickly accumulate hidden coupling among user management, hotel management, rate administration, query serving, and publication flow. By assigning them to explicit owners, the report makes clear not only where each use case is handled, but also where it is not handled.
 
-This choice improved clarity in two ways. First, it reduced ambiguity about where new logic should be placed. For example, permission checks belong close to access handling and permission management rather than being scattered through unrelated services. Second, it supported maintainability by minimizing responsibility overlap. Hotel administration, rate administration, permission management, query handling, and price publication were treated as related but distinct concerns, which makes later testing and refinement easier.
+This step also improves design review quality. When functional ownership is explicit, later analysis of reliability, availability, testability, or monitorability can refer to named elements instead of vague “system behavior.” That precision is important in an academic architecture report because it makes every later refinement easier to justify against the earlier design record.
 
-### 4.4 Step 5 Instantiate Elements
+#### ADD Step 5:
 
-The main responsibility allocation was:
+The main functional allocation decided in this step was:
 
-- login and access control through the authentication gateway;
-- price update and simulation through the rate editor;
-- price retrieval through the query handler and read service;
-- hotel and rate master-data maintenance through dedicated managers;
-- permission changes through the permission manager;
-- outbound publication through the price publisher.
+- login and access control through the Authentication Gateway;
+- price update and simulation through the Rate Editor;
+- price retrieval through the Price Query Handler and Price Read Service;
+- hotel administration through the Hotel Manager;
+- rate and rule administration through the Rate Rule Manager;
+- permission changes through the Permission Manager;
+- outbound publication through the Price Publisher.
 
-This decomposition supports the full functional surface of the assignment while preserving clean module boundaries.
+After this step, the architecture moved from broad structural zones to operationally meaningful elements. This was important because later runtime-quality work depends on knowing which concrete elements sit on the critical execution paths.
 
-From an ADD perspective, this step was where the architecture moved from abstract structure to operational structure. After Iteration 1, the system had top-level zones. After Iteration 2, the system had named elements whose roles corresponded to the required business capabilities. That transition is essential because later quality-attribute work depends on knowing which concrete elements sit on the critical execution paths.
+The instantiation also strengthened cohesion. The Rate Editor is not merely a convenient label; it groups change-oriented pricing responsibilities that naturally belong together. The same logic applies to the Price Read Service, the Permission Manager, and the Hotel Manager. This cohesion reduces the likelihood that later modifications will spread logic across unrelated modules, which directly supports modifiability and team comprehension.
 
-### 4.5 Step 6 Sketch Views and Record Decisions
+At the same time, the architecture preserved separation between user-facing request handling and internal business ownership. That separation matters because some elements exist mainly to receive requests, while others exist to apply domain rules. Keeping those roles distinct provides a cleaner basis for both future protocol extension and later runtime optimization.
 
-The functional decomposition view can be summarized textually as follows:
+#### ADD Step 6:
+
+The functional view created in this iteration can be summarized textually as follows:
 
 1. The External Interface Layer contains the Authentication Gateway and the Price Query Handler.
-2. The Authentication Gateway is responsible for login access control and for enforcing authorization at the system boundary.
-3. The Price Query Handler is responsible for receiving query-oriented requests and forwarding them to the internal read path.
+2. The Authentication Gateway is responsible for login access control and authorization enforcement at the system boundary.
+3. The Price Query Handler receives query-oriented requests and forwards them to the internal read path.
 4. The Core Business Logic Layer contains the Rate Editor, Price Read Service, Hotel Manager, Rate Rule Manager, and Permission Manager.
-5. The Rate Editor owns price-change and simulation-oriented responsibilities.
-6. The Price Read Service owns the internal logic for retrieving pricing data.
-7. The Hotel Manager owns hotel administration responsibilities.
+5. The Rate Editor owns price-change and simulation responsibilities.
+6. The Price Read Service owns the internal retrieval of pricing data.
+7. The Hotel Manager owns hotel administration.
 8. The Rate Rule Manager owns rate definition and pricing-rule management.
-9. The Permission Manager owns permission and access-right changes.
-10. The Integration Layer contains the Price Publisher, which is responsible for sending published pricing results to external systems.
+9. The Permission Manager owns user-permission updates.
+10. The Integration Layer contains the Price Publisher, which is responsible for sending published pricing results to the Channel Management System.
 
-The main decisions of this iteration were:
+The main decisions recorded here were that every primary function must map to at least one explicit element, that protocol and authentication concerns should remain outside the domain core, and that administrative, query, and publishing responsibilities should not collapse into one large service.
 
-- every primary function must map to at least one explicit architectural element;
-- authentication and protocol adaptation remain outside the core domain;
-- user, hotel, rate, query, and publishing responsibilities should not collapse into a single large service.
+#### ADD Step 7:
 
-An additional benefit of this iteration was that it clarified future team work allocation. Even though the report does not assign implementation tasks to specific source modules here, the decomposition naturally suggests parallel work areas: authentication and access control, query handling, administrative management, price publishing, and external integration. This anticipates later development concerns without prematurely turning the architecture report into a project plan.
+The second iteration met its target successfully. All required major behaviors now had explicit architectural ownership, and the results remained consistent with the top-level structure created in Iteration 1. No contradiction or structural reset was needed.
 
-### 4.6 Step 7 Analyze Current Design
+The analysis also made the next challenge clearer. Once functional ownership was explicit, it became possible to identify which elements carried the highest runtime pressure. In particular, publication reliability and query availability now sat on identifiable paths, which created the basis for Iteration 3.
 
-The second iteration achieved its goal. The design now supports all major required behaviors with explicit element ownership. The architecture remained consistent with the first iteration and did not require structural rework.
+This means the second iteration reached a productive stopping point. The team did not yet know every detail of runtime hardening, but it now knew exactly where runtime hardening had to occur. That is a strong sign of architectural progress because the remaining uncertainty had shifted from “who owns this behavior?” to “how should this already-identified behavior be strengthened under quality scenarios?”
 
-However, this iteration also exposed the next major architectural challenge. Once functional ownership became explicit, it became easier to identify where the most demanding runtime quality scenarios live. In particular, reliable publication and highly available query behavior were now tied to recognizable components and paths, which made Iteration 3 both possible and necessary.
+### 3) Output results of each step (Iteration 3: Addressing Reliability and Availability Quality Attributes)
 
-## 5. Iteration 3: Addressing Reliability and Availability Quality Attributes
+#### ADD Step 2:
 
-### 5.1 Step 2 Select Drivers
+The third iteration selected the following drivers:
 
-This iteration selected:
+- QA-2 Reliability;
+- QA-3 Availability;
+- HPS-2 as the functional anchor for reliable price publication;
+- HPS-3 as the functional anchor for highly available price query;
+- CON-6 as the cloud-native constraint.
 
-- QA-2 Reliability
-- QA-3 Availability
-- HPS-2 as the functional anchor for publication reliability
-- HPS-3 as the functional anchor for query availability
-- CON-6 as the cloud-native constraint
+These drivers were chosen because the most demanding runtime qualities in the assignment are not spread evenly across the system. They are concentrated mainly in the publication path and the query path. The purpose of this iteration was therefore to refine those quality-critical paths rather than to redesign the whole system again.
 
-These were chosen because reliable price publication and highly available price query are the most demanding runtime qualities in the assignment.
+#### ADD Step 3:
 
-This iteration differs from Iteration 2 in an important way. Iteration 2 asks whether the architecture can perform the required functions. Iteration 3 asks whether the architecture can perform the most demanding functions under the most demanding quality constraints. This shift from functional sufficiency to quality-attribute sufficiency is one of the core strengths of ADD as a design process.
-
-### 5.2 Step 3 Select Elements
-
-The two primary refinement targets were:
+The selected elements for refinement were:
 
 - the Price Publishing Component;
 - the Price Query Component.
 
-These elements sit directly on the path of the two quality scenarios and therefore determine whether the quality goals are feasible.
+These elements sit directly on the path of the two relevant quality scenarios. Reliability depends on whether price changes can be delivered outward in a controlled and traceable way, and availability depends on whether price queries can continue to be served under the required runtime pressure. Focusing on these elements kept the iteration disciplined and scenario-driven.
 
-Selecting these elements also prevented the quality-attribute discussion from becoming too broad. Reliability and availability could theoretically be discussed at many levels, but in this case the report remains disciplined by focusing on the exact elements that are responsible for price publication and price query. This keeps the iteration grounded in the provided scenarios instead of drifting into generic infrastructure talk.
+#### ADD Step 4:
 
-### 5.3 Step 4 Select Design Concepts
-
-The selected concepts were:
+The selected design concepts were:
 
 - decoupled publication flow for reliability;
-- durable and traceable message handoff for publication;
-- redundant and scalable query handling for availability;
-- cloud-native deployment assumptions consistent with the assignment constraint.
+- durable and traceable publication handoff;
+- redundant and horizontally scalable query handling for availability;
+- continued alignment with the cloud-native structural preference.
 
-The implementation deliberately stayed technology-neutral in the report because the assignment prohibits importing outside design knowledge beyond the provided material.
+The report intentionally remains technology-neutral because the assignment prohibits introducing external product knowledge. Even so, the structural meaning is clear. Reliable publication requires an explicit and traceable handoff model rather than an implicit update path. Highly available query service requires a structure that can be duplicated and scaled without coupling reads to slower administrative or publication-side behavior.
 
-Even without naming external tools, the architectural meaning of these choices is clear. Reliability on the publication side requires an explicit handoff model rather than an implicit “update and hope” flow. Availability on the query side requires a design where query-serving capacity can be replicated and where query handling is not tightly coupled to slower administrative or publication paths. These are structural conclusions derived from the quality scenarios themselves.
+These concepts were also selected because they respect the architecture already established in earlier iterations. The report does not introduce an entirely new subsystem solely for quality attributes. Instead, it refines the previously identified publication and query elements. That continuity matters because a good ADD result should show accumulated refinement, not repeated replacement of the architectural baseline.
 
-### 5.4 Step 5 Instantiate Elements
+Another important justification is that reliability and availability pull the architecture in different directions. Reliability favors stronger control and traceability on the publication side, while availability favors lighter and more replicable handling on the query side. Treating them as different architectural paths avoids the common mistake of applying one quality strategy uniformly to all behavior even when the underlying scenarios are different.
 
-The publication side was refined into a structure that separates price-change initiation from reliable downstream publication. The query side was refined into a structure that allows horizontal duplication of query-serving logic without changing core domain rules.
+#### ADD Step 5:
 
-This refinement is important because it preserves a distinction between correctness-critical operations and availability-critical operations. Publication is correctness-sensitive: every successful change must be reflected externally and received by the Channel Management System. Query is service-availability-sensitive: clients must continue to retrieve prices under the required SLA. Designing them as separate critical paths gives the architecture a clearer basis for later operational reasoning.
+The publication side was refined into a path that separates price-change initiation from downstream publication. The query side was refined into a path that allows duplicated query-serving logic without changing the core business rules.
 
-The architectural effect of this iteration was:
+This refinement strengthened the distinction between correctness-sensitive operations and availability-sensitive operations. Publication is correctness-critical because every successful change must ultimately reach the external channel management side. Query is availability-critical because clients must continue to retrieve pricing information under the target service level. Keeping these paths separate makes the architecture more defensible and easier to evolve.
 
-- publication became a reliability-focused path with stronger isolation;
-- query became an availability-focused path with stronger redundancy and scale-out potential.
+The instantiation in this iteration also improves analytical clarity. Once publication and query have separate structural paths, the report can explain failure impact, recovery expectation, and scalability expectation more precisely. Publication failures are evaluated in terms of correctness and traceability, while query stress is evaluated in terms of service continuity and response capacity. This is much stronger than treating “pricing” as one undifferentiated workload.
 
-### 5.5 Step 6 Sketch Views and Record Decisions
+From a maintainability perspective, this separation also prevents optimization in one path from distorting another. Query-side replication should not force publication behavior to become eventually uncontrolled, and publication-side correctness mechanisms should not unnecessarily slow down read-heavy traffic. The architecture therefore becomes more balanced by giving each quality-critical path room to evolve according to its own dominant concern.
 
-The runtime-oriented view for this iteration can be summarized textually as follows:
+#### ADD Step 6:
+
+The runtime-quality view created in this iteration can be summarized textually as follows:
 
 1. A price-change operation starts from the Rate Editor.
-2. The Rate Editor forwards the publication-related work to the Price Publishing Component.
-3. The Price Publishing Component passes the change through a durable publication handoff before the result is delivered to the Channel Management System.
-4. This publication path is the main reliability-sensitive path in the architecture.
+2. The Rate Editor forwards publication-related work to the Price Publishing Component.
+3. The Price Publishing Component passes the change through a durable publication handoff before delivery to the Channel Management System.
+4. This publication path is treated as the reliability-sensitive execution path of the architecture.
 5. On the query side, Query Clients send requests to the Price Query Component.
-6. The Price Query Component delegates serving work to a replicated query service.
-7. The replicated query service reads from the pricing data source.
-8. This query path is the main availability-sensitive path in the architecture.
+6. The Price Query Component delegates query-serving work to a replicated query service.
+7. The replicated query service reads from the pricing data source through the designated read path.
+8. This query path is treated as the availability-sensitive execution path of the architecture.
 
-The key design decisions were:
+The main decisions recorded here were to separate publication and query as different quality-critical paths, to make publication flow explicit and traceable, and to support query availability through structurally replicable serving elements instead of overloading the write-oriented path.
 
-- treat publication and query as separate quality-critical paths;
-- improve reliability by making publication flow explicit and traceable;
-- improve availability by allowing replicated query-serving elements;
-- preserve consistency with the earlier architecture instead of redesigning the system from scratch.
+#### ADD Step 7:
 
-These decisions also show a useful ADD pattern: later iterations should strengthen the architecture by refining already-known elements, not by introducing disconnected structures. The Price Publishing Component and Price Query Component were not accidental additions; they were refinements of functionally meaningful elements identified earlier. This continuity makes the final design easier to justify as one coherent architecture.
+The third iteration successfully strengthened the design for reliability and availability. The architecture could now explain not only which components serve the main functions, but also which paths must be hardened and why.
 
-### 5.6 Step 7 Analyze Current Design
+This analysis also showed that one major dimension was still incomplete: development and operations. The architecture now addressed structure, functional allocation, and runtime quality, but it still needed explicit treatment of deployability, monitorability, and testability. That gap motivated Iteration 4.
 
-The third iteration successfully strengthened the architecture for QA-2 and QA-3. The resulting design is still abstract, but it now clearly explains where reliability and availability are realized structurally.
+The stopping point of Iteration 3 was therefore appropriate. The report had already identified the most important runtime paths and clarified the structural choices needed to support them. Extending the same iteration further into deployment, telemetry, and testing concerns would have mixed two different refinement goals. By ending the iteration here, the ADD process preserved clean focus and left operational refinement to a dedicated final pass.
 
-At this point, the architecture could answer three different classes of questions: what the main structural zones are, how primary functionality is allocated, and which paths must be hardened for runtime quality attributes. The remaining gap was operational readiness: how the architecture supports deployment across environments, monitoring, and independent testing. That gap became the direct focus of Iteration 4.
+### 4) Output results of each step (Iteration 4: Addressing Development and Operations)
 
-## 6. Iteration 4: Addressing Development and Operations
+#### ADD Step 2:
 
-### 6.1 Step 2 Select Drivers
+The final iteration selected the following drivers:
 
-The final iteration selected:
+- QA-7 Deployability;
+- QA-8 Monitorability;
+- QA-9 Testability;
+- CRN-3 Team work allocation;
+- CRN-4 Avoidance of technical debt;
+- CRN-5 Continuous deployment infrastructure;
+- CON-3 Proprietary Git-based hosting;
+- CON-4 Schedule pressure;
+- CON-6 Cloud-native preference.
 
-- QA-7 Deployability
-- QA-8 Monitorability
-- QA-9 Testability
-- CRN-3 team work allocation
-- CRN-4 avoidance of technical debt
-- CRN-5 continuous deployment infrastructure
-- CON-3 proprietary Git-based hosting
-- CON-4 schedule pressure
-- CON-6 cloud-native preference
+This driver set shifted attention from runtime execution to long-term delivery, verification, and maintainability. The assignment is not satisfied only by a structure that works conceptually; it also needs a structure that can be deployed, observed, tested, and developed under realistic project constraints.
 
-This iteration shifted attention from runtime behavior to delivery, observability, and maintainability.
-
-This transition is justified by the assignment itself. The system is not only required to function and meet runtime qualities; it must also be workable under project and operational constraints such as environment portability, measurement needs, independent testing, team coordination, and delivery deadlines. Therefore, the final iteration completes the architecture by connecting the earlier design decisions to development and operational use.
-
-### 6.2 Step 3 Select Elements
+#### ADD Step 3:
 
 The selected refinement targets were:
 
 - the Price Publishing Service, because QA-8 explicitly depends on publication metrics;
 - deployment packaging and configuration elements, because QA-7 depends on environment portability;
-- integration-test boundaries, because QA-9 requires independence from external systems.
+- integration-test boundaries, because QA-9 requires independence from real external systems.
 
-This element selection is also consistent with the earlier iterations. Rather than inventing a completely separate “operations architecture,” the design refines already meaningful parts of the system: the publication path, the configuration boundary, and the interfaces to outside services. In this way, operational concerns remain integrated into the same architecture rather than being treated as external afterthoughts.
+This selection kept the iteration connected to the previous design. Instead of inventing an unrelated “operations architecture,” the report refined already meaningful parts of the existing system.
 
-### 6.3 Step 4 Select Design Concepts
+#### ADD Step 4:
 
-The selected concepts were:
+The selected design concepts were:
 
 - externalized configuration for environment portability;
 - explicit telemetry emission for publication monitoring;
 - replaceable adapters and test seams around external dependencies;
-- modular structure that supports parallel work and avoids design erosion.
+- modular work boundaries that support parallel development and reduce design erosion.
 
-These concepts directly answer the assignment concerns CRN-3, CRN-4, and CRN-5. Clear module boundaries support parallel work allocation. Test seams and explicit adapters reduce the risk of technical debt caused by tightly coupled integrations. Externalized configuration and deployment-oriented structure provide a basis for repeatable delivery workflows. Even without naming specific toolchains, the architectural consequences of these concepts are concrete and useful.
+These concepts respond directly to the listed concerns. Clear module boundaries support parallel work allocation. Externalized configuration supports repeatable deployment. Telemetry supports monitorability. Adapter boundaries support independent testing and reduce the risk of technical debt caused by tightly coupled integrations.
 
-### 6.4 Step 5 Instantiate Elements
+This concept set was also chosen because development and operations concerns are cumulative rather than isolated. A system is easier to deploy repeatedly when configuration is externalized, easier to observe when telemetry is explicit, and easier to test when external dependencies are isolated. These are different concerns, but they reinforce one another structurally. The architecture therefore benefits from treating them together in the final iteration rather than scattering them across unrelated earlier decisions.
 
-This iteration refined the architecture with:
+Another reason for this design choice is project sustainability. The assignment case mentions schedule pressure, team work allocation, and continuous delivery concerns. Those pressures cannot be answered only by runtime structure. They require design decisions that reduce hidden coupling, make environment-specific behavior explicit, and create boundaries that support safe change. The selected concepts directly support those longer-term project needs.
 
-- a configuration service or equivalent externalized configuration boundary;
+#### ADD Step 5:
+
+The architecture was refined with the following elements:
+
+- a configuration boundary so that environment changes do not require code changes;
 - telemetry emitters around the publication flow;
-- adapter-style boundaries around external systems such as the identity service and channel management system.
+- adapter-style boundaries around the identity service and the Channel Management System;
+- explicit test boundaries that allow integration-oriented verification without always depending on real external systems.
 
-These changes do not replace business logic. Instead, they make the architecture easier to deploy, observe, and test.
+These refinements do not replace business logic. Instead, they make the business architecture deployable, observable, and testable in a controlled way.
 
-This distinction matters because development-and-operations work often fails when it is postponed until after the functional architecture is fixed. In this report, the architecture remains centered on business responsibilities, but the final iteration ensures that those responsibilities are supported by structures that allow measurement, controlled deployment, and test isolation. This is a stronger and more realistic architectural outcome than simply adding monitoring or deployment notes at the end.
+This step also strengthens the relationship between architecture and implementation workflow. A configuration boundary supports environment transitions without code edits. Telemetry around publication provides visible evidence for operational behavior. Adapter boundaries let tests focus on internal logic without depending on real external services in every run. Together, these choices reduce friction not only for operation, but also for development, debugging, and verification.
 
-### 6.5 Step 6 Sketch Views and Record Decisions
+The architecture at this point is therefore more than functionally complete. It is structured in a way that can support repeated execution, controlled release, and incremental maintenance. That is an important outcome because the final iteration is meant to show that the architecture can survive practical project use rather than exist only as a conceptual model.
 
-The development-and-operations view can be summarized textually as follows:
+#### ADD Step 6:
 
-1. The Price Publishing Service depends on a configuration boundary so that environment changes do not require code changes.
-2. The Price Publishing Service emits operational data through a Telemetry Emitter.
+The development-and-operations view created in this iteration can be summarized textually as follows:
+
+1. The Price Publishing Service depends on a configuration boundary so that deployment-environment changes do not require source-code modification.
+2. The Price Publishing Service emits operational data through a telemetry boundary.
 3. External publication is isolated through a Channel Management System Adapter.
 4. Identity-related integration is isolated through a User Identity Service Adapter.
-5. Authentication and permission logic depends on that adapter boundary instead of directly depending on the external service.
-6. An Integration Test Harness can exercise the adapter boundaries independently, which supports testability without requiring real external systems in every test run.
+5. Authentication and permission logic depend on adapter boundaries rather than directly depending on external services.
+6. An Integration Test Harness can exercise these boundaries independently, which improves testability and reduces coupling to real third-party systems during verification.
 
-The key design decisions were:
+The key decisions recorded here were to obtain portability from configuration rather than code changes, to embed publication observability inside the architecture rather than adding it later, and to isolate external systems through adapters so that monitoring, deployment, and testing become first-class architectural concerns.
 
-- portability should come from configuration rather than code changes;
-- publication observability must be embedded rather than added later;
-- external systems must be isolated behind adapters so components can be tested independently;
-- clean boundaries also support team parallelism and reduce technical debt risk.
+#### ADD Step 7:
 
-Together, these decisions connect the development concerns to the whole design history of the assignment. The first iteration defined boundaries, the second allocated behavior, the third strengthened quality-critical paths, and the fourth ensured that the resulting architecture could actually be built, verified, and operated in a disciplined way. This cumulative effect is exactly what the four-iteration ADD structure was meant to demonstrate.
+The fourth iteration completed the assignment scope. The final architecture now covers the required top-level structure, primary functionality, reliability and availability concerns, and the development-and-operations concerns of deployability, monitorability, and testability.
 
-### 6.6 Step 7 Analyze Current Design
+The most important result is the consistency across iterations. Each iteration introduced additional refinement pressure, but no later iteration invalidated the earlier structural choices. Instead, the architecture evolved from top-level decomposition to functional mapping, then to runtime hardening, and finally to operational readiness.
 
-The fourth iteration completed the required scope of the assignment. The final architecture now covers:
+This final stopping point is justified because the architecture now answers all questions explicitly posed by the assignment template. It explains the overall structure, functional ownership, reliability and availability treatment, and development-and-operations support. Further detail could still be added in a real project, but it would belong to detailed design or implementation planning rather than the required scope of this architecture report.
 
-- top-level structure;
-- primary functionality;
-- reliability and availability;
-- deployability, monitorability, and testability.
+## II. Interaction Cost Analysis
 
-The design remained consistent across all four iterations and did not require contradiction or reset.
+### The way of completing the assignment
 
-This final consistency is one of the strongest indicators that the architecture process was effective. Each iteration introduced new refinement pressure, but no later iteration invalidated the earlier structural choices. Instead, the design became progressively more specific while preserving a stable architectural backbone.
+The assignment was completed with a Multi-agent approach. The five working roles were Coordinator, Architect, Quality Analyst, Reviewer, and Recorder. These roles were not treated as separate knowledge sources. They were separate reasoning viewpoints over the same bounded assignment material, which improved process discipline and traceability.
 
-### 6.7 Cross-Iteration Architectural Evolution
+### The LLM used
 
-Looking across all four iterations, the most important architectural result is not a single component diagram but the way the design matured without changing direction. Iteration 1 established the broad decomposition that separated user interaction, business logic, and external integration. At that point, the architecture answered the “shape of the system” question, but it intentionally left many behavioral details open. This was appropriate because the first iteration was about structural stability rather than operational completeness.
+The base large language model used in the assignment was Qwen3-Max. The agent framework used to organize the workflow and model calls was Spring AI Alibaba.
 
-Iteration 2 then used that structural frame to assign explicit behavioral responsibilities. The architecture moved from broad structural zones to named elements with recognizable duties such as authentication handling, query serving, rate editing, permission management, and price publication. This is the point where the design became functionally accountable: the report could now explain not only the existence of layers, but also how each primary use case would be supported by concrete architectural elements.
+### Number of Human Interactions (turns)
 
-Iteration 3 deepened the architecture along the most demanding runtime paths. Instead of spreading attention evenly across all parts of the system, the design concentrated on the publication and query paths because those are where the highest-impact reliability and availability pressures appear. This made the architecture more operationally credible. After this iteration, the report could explain not only functional ownership, but also why certain paths needed stronger isolation, stronger traceability, or stronger capacity for replication.
+For the final submission-stage accounting used in this report, the number of human interactions was 4 turns:
 
-Iteration 4 completed the design by connecting architecture to delivery and long-term maintainability. Externalized configuration, telemetry boundaries, and test seams did not replace earlier design decisions; they made those decisions viable in a real project environment. In this sense, the four iterations form a logical sequence: structural decomposition, functional allocation, runtime hardening, and development-and-operations refinement. The final architecture is stronger precisely because it was not designed in one jump.
-
-## 7. Interaction Cost Analysis
-
-### 7.1 Selected Setup
-
-- AI paradigm: Multi-agent
-- Basic LLM: Qwen3-Max
-- Agent framework: Spring AI Alibaba
-
-### 7.2 Observable Execution Facts
-
-The implementation records complete execution traces. From the final successful run:
-
-- total iterations: 4;
-- ADD steps executed per iteration: 6 (Step 2 to Step 7);
-- agent roles per step: 5;
-- total recorded model turns: 120.
-
-These numbers are useful not only as runtime statistics but also as evidence of process completeness. The final trace confirms that every required iteration and every required ADD step from Step 2 through Step 7 was executed through the multi-agent workflow and recorded with timestamps.
-
-### 7.3 Human Interaction Cost
-
-The workflow required a limited number of human actions in the final assignment-generation stage. The counted actions were:
-
-- configuring the DashScope API key;
-- triggering the final full run;
-- checking the generated outputs;
-- organizing the final report and supporting submission package.
-
-For the final submission-stage accounting used in this report, the number of human interactions was **4 turns**:
-
-1. configure the API key;
+1. configure the DashScope API key;
 2. start the formal full run;
 3. inspect the generated outputs;
 4. organize the final submission materials.
 
-### 7.4 Token and Runtime Cost
+This counting method intentionally measures only the human actions directly related to the final assignment-generation stage rather than the earlier development-and-debugging phase.
 
-The measured execution cost for the final formal run was:
+### Token Consumption (K tokens)
 
-- total token usage: **418K tokens**;
-- end-to-end runtime: **49:08 min**;
-- repeated formal rerun cost: **0**, because the final submission was based on the single successful formal run.
+The measured token consumption of the final formal run was 418K tokens.
 
-From a reporting perspective, these values also show the trade-off of the chosen paradigm. Multi-agent execution does not minimize total interaction volume. Instead, it spends more model turns in exchange for stronger structural discipline, clearer role separation, and more explicit review checkpoints. That trade-off is acceptable in this assignment because the purpose is to study the effectiveness of AI paradigms for architecture design rather than to minimize token usage alone.
+This amount is consistent with the chosen paradigm. The multi-agent workflow records 4 iterations, 6 ADD steps per iteration from Step 2 to Step 7, and 5 agent roles per step, for a total of 120 recorded model turns. The purpose of this additional token usage is not to create more knowledge, but to create clearer structure, stronger self-checking, and better traceability.
 
-### 7.5 Discussion
+### Time Cost (min)
 
-The main benefit of the multi-agent structure was not additional knowledge. Its value was process discipline:
+The measured end-to-end time cost of the final formal run was 49:08 minutes, which is approximately 49.13 minutes.
 
-- the coordinator preserved step alignment;
-- the architect emphasized structure and responsibility allocation;
-- the quality analyst checked fitness against quality attributes;
-- the reviewer constrained unsupported assumptions;
-- the recorder improved traceability.
+The runtime is acceptable for this assignment because the chosen paradigm emphasizes architectural discipline and evidence preservation rather than minimal execution latency. The full log demonstrates that every required iteration and every required ADD step was completed and recorded with timestamps.
 
-The main cost was verbosity. A complete multi-agent trace is useful as evidence, but it must be distilled before submission.
+The main benefit of the multi-agent approach was process discipline. The coordinator preserved step alignment, the architect emphasized structure and responsibility allocation, the quality analyst repeatedly checked quality-attribute fitness, the reviewer constrained unsupported assumptions, and the recorder improved traceability. The main cost was output verbosity: a complete multi-agent execution trace is useful as evidence, but it must be distilled before it can become a concise report.
 
-Another observable limitation is that the multi-agent workflow can create representational repetition. Different agents often restate similar driver selections or conclusions because they are reasoning from the same assignment material. This repetition is useful during execution because it supports verification, but it is not suitable as a final report format. Therefore, a major part of the submission work was not only generating design output but also consolidating overlapping agent views into one concise architectural narrative.
+Another important observation is that the multi-agent workflow naturally produces representational repetition. Several agents may restate similar driver selections or structural conclusions because they are reasoning from the same bounded material. This redundancy is useful during execution because it supports verification, but it is not suitable as a final report format. Therefore, a meaningful portion of the assignment effort lies in consolidating overlapping outputs into one coherent architectural narrative.
 
-### 7.6 Strengths and Limitations of the Multi-Agent Paradigm
+## III. Individual Reflection
 
-The strongest advantage of the selected paradigm is role separation under a shared knowledge boundary. In this assignment, all agents had access to the same prior knowledge, but they did not perform the same function. The coordinator helped maintain process discipline, the architect emphasized structural decisions, the quality analyst repeatedly checked design fitness against quality attributes, the reviewer helped detect unsupported reasoning, and the recorder improved traceability. This created a form of internal review that was useful for architecture work, where justification is often as important as the final structure.
+### 1) The problems encountered and the solutions adopted
 
-A second advantage is that the workflow naturally supports staged refinement. Because the system progressed through explicit roles and explicit ADD steps, it was easier to preserve a clear trail from drivers to design concepts and then to instantiated elements. That traceability would be harder to maintain in a less structured workflow where all reasoning is blended into one continuous response stream.
+The first major problem was how to keep the implementation strictly aligned with the assignment constraints. The case explicitly prohibits external domain knowledge, few-shot examples, and silent requirement reinterpretation. A general-purpose model can easily drift into those behaviors if its instructions are not tightly bounded. To address this, the prompts and role definitions were constrained by an explicit system policy that repeatedly anchored every agent to the supplied ADD method, case material, iteration plan, and rule set.
 
-However, the paradigm also has clear costs. It increases token usage, increases execution time, and produces overlapping output that must later be distilled by humans. It is therefore not automatically “better” in every context. Its value is strongest when the task rewards explicit reasoning structure, traceability, and bounded verification. This assignment is a good fit for that paradigm because software architecture design is iterative, justification-heavy, and sensitive to requirement interpretation.
+The second major problem was how to handle the very long multi-agent execution trace. A full successful run contains 120 recorded model turns, which is excellent as evidence but unsuitable as a final report format. The adopted solution was to preserve the full timestamped logs as a separate deliverable and then distill the architecture results into a concise report aligned with the official appendix template. This separation of raw evidence and final narrative made the submission both complete and readable.
 
-## 8. Individual Reflection
+The third problem was the local runtime environment. The project needed a non-default Java setup, and the default machine environment was not immediately suitable for execution. The adopted solution was to verify a working Java and Maven runtime explicitly and to keep the run commands deterministic. This reduced repeated environment-related failure and made the source code easier to reproduce.
 
-### 8.1 Problems Encountered
+The fourth problem was presentation quality. The model-generated draft could contain repeated explanations, layout noise, and section ordering that did not directly match the assignment template. The solution was not to invent new content, but to reorganize the already generated architecture results into the required report structure, tighten the language, and clearly separate final deliverables from intermediate artifacts.
 
-The main problems encountered in this assignment were:
+### 2) A detailed account of your personal contributions to the group work
 
-- reconciling strict assignment constraints with automated model output;
-- managing a long multi-agent trace without turning the final report into a log dump;
-- ensuring the implementation could run in a local environment with a non-default Java setup;
-- keeping the design grounded only in the supplied assignment material.
+The group work was divided across implementation, verification, document consolidation, and submission preparation. The most important practical lesson from this collaboration is that completing an AI-assisted software-architecture assignment is not just an implementation task. It also requires prompt-boundary control, result verification, artifact organization, and report rewriting so that the final deliverables remain both accurate and submission-ready.
 
-### 8.2 Solutions Adopted
+The contributions of the three members are summarized below.
 
-The team addressed these issues by:
+#### Name (Chinese) / Contributions
 
-- constraining prompts with an explicit system policy;
-- preserving complete logs and then summarizing them for the final report;
-- using a verified Java and Maven runtime configuration for execution;
-- separating intermediate artifacts from final deliverables.
-
-The team also learned that final submission quality depends on artifact curation as much as on raw model output. Conversation logs, draft reports, source code, and final report documents all serve different purposes. Treating them as separate deliverables made it easier to keep the final report concise while preserving full evidence for the design process.
-
-Another reflection is that the team’s work changed meaning over time. Early in the assignment, the challenge was mainly technical: make the system run, constrain the prompts, and preserve the logs correctly. Later, the challenge became editorial and architectural: identify which parts of the trace actually belong in the final report and how to present them in a way that matches the ADD template. This shift showed that building an AI-assisted architecture workflow is not only an implementation task but also a documentation and interpretation task.
-
-### 8.3 Member Contributions
-
-The team contributions in this assignment are summarized below:
-
-- 王景宣: led the implementation, completed environment setup and troubleshooting, performed runtime verification, and organized the final submission materials.
-- 李顺: handled requirement analysis, checked prompt constraints, participated in development integration, inspected generated results, and helped organize the report.
-- 张岩: handled test verification, reviewed logs and report materials, organized the submission directory, and checked delivery consistency.
-
-## 9. Conclusion
-
-The final multi-agent system completed the four required ADD iterations for the Hotel Pricing System and produced a full evidence trail of the design process. The architecture evolved from a top-level structural decomposition to a more refined design that addressed functionality, runtime quality attributes, and development-and-operations concerns.
-
-The most important outcome is not only the generated architecture, but also the reproducible process behind it. The submitted source code, timestamped logs, and distilled report together demonstrate that the assignment was completed with the selected multi-agent setup in a traceable and verifiable way.
-
-More specifically, the assignment shows that the value of the multi-agent approach lies in structured reasoning rather than hidden expertise. The final architecture was produced not by adding outside knowledge, but by repeatedly applying the same bounded prior knowledge through different design roles and iteration goals. This makes the outcome especially suitable for a software architecture course, because the report demonstrates both the design result and the disciplined method used to reach it.
+- 王景宣: responsible for leading the implementation, completing environment setup and troubleshooting, performing runtime verification, and organizing the final submission materials.
+- 李顺: responsible for requirement analysis, prompt-constraint checking, development integration, result inspection, and report organization.
+- 张岩: responsible for test verification, review of logs and report materials, submission-directory organization, and delivery-consistency checking.
