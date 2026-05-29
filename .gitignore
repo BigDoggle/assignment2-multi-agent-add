@@ -6,7 +6,6 @@ target/
 .mybatis/
 docs/
 logs/
-out/
 *.log
 ~$*.docx
 submission/_a4_test.docx
